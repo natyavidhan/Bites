@@ -24,8 +24,10 @@ class Config:
     # tools such as the Bites MCP server. Unset disables that API entirely.
     API_KEY = os.environ.get("API_KEY", "")
 
-    MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
-    MONGODB_DB = os.environ.get("MONGODB_DB", "bites")
+    # `or` (not `.get(key, default)`'s default) so a variable that's present
+    # on the host but left blank still falls back correctly.
+    MONGODB_URI = os.environ.get("MONGODB_URI") or "mongodb://localhost:27017"
+    MONGODB_DB = os.environ.get("MONGODB_DB") or "bites"
 
     MAX_CONTENT_LENGTH = int(os.environ.get("MAX_UPLOAD_BYTES", 2 * 1024 * 1024))  # 2 MB
 
