@@ -19,9 +19,14 @@
   const protectPasswordField = document.getElementById("protect_password");
   const fileField = document.getElementById("file");
   const contentField = document.getElementById("content");
+  const sourceTypeField = document.getElementById("source_type");
+  const themeSection = document.getElementById("theme-section");
+  const themeSelect = document.getElementById("markdown_theme");
+  const previewThemeBtn = document.getElementById("preview-theme-btn");
 
   let slugTouched = false;
   let editingSiteId = null;
+  let themeNameBySlug = {};
 
   function slugify(text) {
     return (text || "")
@@ -51,6 +56,41 @@
     return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   }
 
+  async function fetchThemes() {
+    const res = await fetch("/dashboard/api/themes");
+    if (!res.ok) return;
+    const data = await res.json();
+    const themes = data.themes || [];
+
+    const groups = { modern: "Modern", classic: "Classic (GitHub Pages)" };
+    themeSelect.innerHTML = "";
+    for (const [family, label] of Object.entries(groups)) {
+      const optgroup = document.createElement("optgroup");
+      optgroup.label = label;
+      for (const theme of themes.filter((t) => t.family === family)) {
+        const option = document.createElement("option");
+        option.value = theme.slug;
+        option.textContent = theme.name;
+        optgroup.appendChild(option);
+        themeNameBySlug[theme.slug] = theme.name;
+      }
+      themeSelect.appendChild(optgroup);
+    }
+  }
+
+  function currentContentIsMarkdown() {
+    const activePanel = document.querySelector(".tab-panel.active").dataset.panel;
+    if (activePanel === "upload") {
+      const name = fileField.value || "";
+      return /\.(md|markdown)$/i.test(name);
+    }
+    return sourceTypeField.value === "markdown";
+  }
+
+  function updateThemeVisibility() {
+    themeSection.classList.toggle("hidden", !currentContentIsMarkdown());
+  }
+
   async function fetchSites() {
     const res = await fetch("/dashboard/api/sites");
     if (res.status === 401) {
@@ -74,10 +114,14 @@
     for (const site of sites) {
       const tr = document.createElement("tr");
       const url = "/" + site.slug;
+      const themeName = site.source_type === "markdown" ? themeNameBySlug[site.markdown_theme] : null;
       tr.innerHTML = `
         <td>${escapeHtml(site.title)}</td>
         <td><a class="site-link" href="${url}" target="_blank" rel="noopener">${url}</a></td>
-        <td><span class="badge type-${site.source_type}">${site.source_type}</span></td>
+        <td>
+          <span class="badge type-${site.source_type}">${site.source_type}</span>
+          ${themeName ? `<span class="muted">${escapeHtml(themeName)}</span>` : ""}
+        </td>
         <td>
           <label class="switch">
             <input type="checkbox" data-action="toggle" data-id="${site.id}" ${site.is_public ? "checked" : ""}>
@@ -107,7 +151,9 @@
     protectPasswordHint.style.display = "none";
     protectPasswordField.required = false;
     fileField.required = false;
+    themeSelect.value = "github-light";
     switchTab("upload");
+    updateThemeVisibility();
   }
 
   function openCreateModal() {
@@ -135,8 +181,12 @@
     updateSlugPreview();
     document.getElementById("is_public").checked = site.is_public;
     contentField.value = site.raw_content || "";
-    document.getElementById("source_type").value = site.source_type;
+    sourceTypeField.value = site.source_type;
     switchTab("paste");
+    if (site.source_type === "markdown") {
+      themeSelect.value = site.markdown_theme || "github-light";
+    }
+    updateThemeVisibility();
 
     if (site.protected) {
       protectedCheckbox.checked = true;
@@ -167,7 +217,17 @@
   }
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
-    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+    btn.addEventListener("click", () => {
+      switchTab(btn.dataset.tab);
+      updateThemeVisibility();
+    });
+  });
+
+  fileField.addEventListener("change", updateThemeVisibility);
+  sourceTypeField.addEventListener("change", updateThemeVisibility);
+
+  previewThemeBtn.addEventListener("click", () => {
+    window.open(`/dashboard/api/theme-preview?theme=${encodeURIComponent(themeSelect.value)}`, "_blank");
   });
 
   titleField.addEventListener("input", () => {
@@ -246,11 +306,15 @@
       formData.append("file", fileField.files[0]);
     } else if (activePanel === "paste" && contentField.value.trim() !== "") {
       formData.append("content", contentField.value);
-      formData.append("source_type", document.getElementById("source_type").value);
+      formData.append("source_type", sourceTypeField.value);
     } else if (!editingSiteId) {
       formError.textContent = "Upload a file or paste content for the site.";
       formError.style.display = "block";
       return;
+    }
+
+    if (!themeSection.classList.contains("hidden")) {
+      formData.append("markdown_theme", themeSelect.value);
     }
 
     const url = editingSiteId ? `/dashboard/api/sites/${editingSiteId}` : "/dashboard/api/sites";
@@ -277,5 +341,5 @@
     }
   });
 
-  fetchSites();
+  fetchThemes().then(fetchSites);
 })();

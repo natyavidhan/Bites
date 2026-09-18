@@ -1,7 +1,9 @@
-from flask import Blueprint, jsonify, render_template, request
+import markdown as md
+from flask import Blueprint, Response, jsonify, render_template, request
 from werkzeug.security import generate_password_hash
 
 from app.auth import require_admin
+from app.markdown_themes import DEFAULT_THEME, THEME_CATALOG, is_valid_theme, render_themed_document
 from app.models import (
     create_site,
     delete_site,
@@ -11,8 +13,30 @@ from app.models import (
     slug_exists,
     update_site,
 )
-from app.utils.render import detect_source_type, render_markdown_document
+from app.utils.render import MARKDOWN_EXTENSIONS, detect_source_type, render_markdown_document
 from app.utils.slugs import slug_error
+
+_SAMPLE_MARKDOWN = """# Sample document
+
+This is a **preview** of how a Markdown page looks with this theme.
+
+## Features
+
+- Inline `code`, [links](#), and *emphasis*
+- Fenced code blocks
+- Tables and blockquotes
+
+```python
+def hello():
+    print("Hello from Bites!")
+```
+
+> A blockquote, for good measure.
+
+| Column A | Column B |
+| -------- | -------- |
+| foo      | bar      |
+"""
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/dashboard")
 
@@ -111,7 +135,17 @@ def api_create_site():
     if raw_content is None:
         return jsonify({"error": "Upload a file or paste content for the site."}), 400
 
-    rendered_html = render_markdown_document(raw_content, title) if source_type == "markdown" else raw_content
+    markdown_theme = None
+    if source_type == "markdown":
+        markdown_theme = (request.form.get("markdown_theme") or DEFAULT_THEME).strip()
+        if not is_valid_theme(markdown_theme):
+            return jsonify({"error": "Unknown Markdown theme."}), 400
+
+    rendered_html = (
+        render_markdown_document(raw_content, title, markdown_theme)
+        if source_type == "markdown"
+        else raw_content
+    )
 
     fields = {
         "slug": slug,
@@ -119,6 +153,7 @@ def api_create_site():
         "source_type": source_type,
         "raw_content": raw_content,
         "rendered_html": rendered_html,
+        "markdown_theme": markdown_theme,
         "is_public": is_public,
         "protected": protected,
         "protect_username": protect_username if protected else None,
@@ -177,19 +212,57 @@ def api_update_site(site_id):
     raw_content, source_type, err = _read_uploaded_content()
     if err:
         return jsonify({"error": err}), 400
+
+    effective_source_type = source_type or site.get("source_type")
+    effective_title = updates.get("title", site.get("title"))
+
+    theme_changed = False
+    effective_theme = site.get("markdown_theme") or DEFAULT_THEME
+    if effective_source_type == "markdown":
+        if "markdown_theme" in request.form:
+            requested_theme = (request.form.get("markdown_theme") or "").strip()
+            if not is_valid_theme(requested_theme):
+                return jsonify({"error": "Unknown Markdown theme."}), 400
+            theme_changed = requested_theme != effective_theme
+            effective_theme = requested_theme
+        updates["markdown_theme"] = effective_theme
+    elif source_type is not None:
+        # content type explicitly switched away from markdown this update
+        updates["markdown_theme"] = None
+
     if raw_content is not None:
-        title_for_render = updates.get("title", site.get("title"))
         updates["raw_content"] = raw_content
         updates["source_type"] = source_type
         updates["rendered_html"] = (
-            render_markdown_document(raw_content, title_for_render) if source_type == "markdown" else raw_content
+            render_markdown_document(raw_content, effective_title, effective_theme)
+            if source_type == "markdown"
+            else raw_content
         )
-    elif "title" in updates and site.get("source_type") == "markdown":
-        # Re-render so the <title> in the generated document stays in sync.
-        updates["rendered_html"] = render_markdown_document(site.get("raw_content", ""), updates["title"])
+    elif effective_source_type == "markdown" and (("title" in updates) or theme_changed):
+        # Re-render so the <title> and/or theme in the generated document stay in sync.
+        updates["rendered_html"] = render_markdown_document(
+            site.get("raw_content", ""), effective_title, effective_theme
+        )
 
     update_site(site_id, updates)
     return jsonify({"site": serialize_site(get_site_by_id(site_id))})
+
+
+@admin_bp.route("/api/themes", methods=["GET"])
+@require_admin
+def api_list_themes():
+    return jsonify({"themes": THEME_CATALOG})
+
+
+@admin_bp.route("/api/theme-preview", methods=["GET"])
+@require_admin
+def api_theme_preview():
+    theme = request.args.get("theme", DEFAULT_THEME)
+    if not is_valid_theme(theme):
+        return jsonify({"error": "Unknown theme."}), 400
+    body_html = md.markdown(_SAMPLE_MARKDOWN, extensions=MARKDOWN_EXTENSIONS)
+    html_doc = render_themed_document("Theme preview", body_html, theme)
+    return Response(html_doc, mimetype="text/html")
 
 
 @admin_bp.route("/api/sites/<site_id>/toggle-visibility", methods=["POST"])

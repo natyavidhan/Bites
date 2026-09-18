@@ -26,6 +26,7 @@ def serialize_site(doc: dict, include_secrets: bool = False) -> dict:
         "slug": doc.get("slug"),
         "title": doc.get("title"),
         "source_type": doc.get("source_type"),
+        "markdown_theme": doc.get("markdown_theme"),
         "is_public": bool(doc.get("is_public")),
         "protected": bool(doc.get("protected")),
         "protect_username": doc.get("protect_username") if doc.get("protected") else None,

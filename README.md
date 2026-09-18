@@ -10,6 +10,10 @@ HTML/CSS/JS frontend, deploys to Vercel with zero build configuration.
   variables — no signup flow, no user table.
 - **Single-file sites**: upload `.html`/`.htm` (served as-is) or `.md`/`.markdown`
   (rendered to styled HTML server-side), or just paste content directly.
+- **19 Markdown themes**, picked per site from the dashboard: all 12 official
+  GitHub Pages themes (Cayman, Slate, Midnight, Merlot, etc.) plus 7 popular
+  modern color schemes (GitHub Light/Dark, Dracula, Nord, Solarized, Gruvbox).
+  A "Preview" button opens a sample page in a new tab before you commit to one.
 - **Per-site visibility toggle**: flip a site public/private at any time.
 - **Per-site password protection**: optionally require its own username/password
   (HTTP Basic Auth), independent of the admin login.
@@ -39,7 +43,11 @@ app/
   templates/                # Jinja templates (login, dashboard, landing, 404)
   utils/
     slugs.py                 # slugify + validation
-    render.py                 # Markdown -> HTML rendering
+    render.py                 # Markdown -> HTML conversion
+  markdown_themes.py       # theme catalog + per-theme page rendering
+  theme_assets/
+    classic/                 # the 12 GitHub Pages themes' CSS
+    modern/                  # GitHub/Dracula/Nord/Solarized/Gruvbox CSS
 public/
   static/                  # CSS/JS served directly by Vercel's CDN
 ```
@@ -94,6 +102,16 @@ python main.py
   the username/password set for that specific site.
 - A logged-in admin can always open a private or protected site directly, to
   preview it before publishing.
+
+## Markdown theme credits
+
+The 12 classic themes under `app/theme_assets/classic/` are ported from
+[github.com/pages-themes](https://github.com/pages-themes) (CC0-licensed,
+public domain) — the same themes GitHub Pages' theme chooser has always
+offered. Their SCSS was compiled to plain CSS, GitHub-repo-specific bits
+(fork/download buttons, "maintained by" attribution) were stripped, and a
+few missing local fonts/background images were swapped for Google Fonts or
+embedded as data URIs so every page stays a single self-contained file.
 
 ## Security notes
 

@@ -1,0 +1,11 @@
+:root {
+  --bg: #282a36;
+  --fg: #f8f8f2;
+  --muted: #6272a4;
+  --link: #8be9fd;
+  --link-hover: #ff79c6;
+  --border: #44475a;
+  --code-bg: #21222c;
+  --heading: #bd93f9;
+  --accent: #ff79c6;
+}
