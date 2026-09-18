@@ -2,9 +2,107 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard &middot; Bites</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 </head>
 <body>
-<p>Dashboard coming soon.</p>
+
+<div class="topbar">
+  <div class="brand"><span class="dot">&#9679;</span> Bites</div>
+  <form method="post" action="{{ url_for('auth.logout') }}">
+    <button type="submit">Log out</button>
+  </form>
+</div>
+
+<div class="container">
+  <div class="page-header">
+    <h1>Your sites</h1>
+    <button class="btn btn-primary" id="new-site-btn">New site</button>
+  </div>
+
+  <table id="sites-table">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>URL</th>
+        <th>Type</th>
+        <th>Public</th>
+        <th>Protected</th>
+        <th>Updated</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="sites-tbody">
+    </tbody>
+  </table>
+
+  <div class="empty-state" id="empty-state" style="display:none;">
+    <h1>No sites yet</h1>
+    <p class="muted">Create your first site to get a shareable link.</p>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="modal-backdrop">
+  <div class="modal">
+    <h2 id="modal-title">New site</h2>
+    <div class="error-msg" id="form-error" style="display:none;"></div>
+    <form id="site-form">
+      <input type="hidden" id="site-id" value="">
+
+      <label for="title">Title</label>
+      <input type="text" id="title" name="title" required>
+
+      <label for="slug">Site name (URL)</label>
+      <input type="text" id="slug" name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*">
+      <div class="slug-preview" id="slug-preview"></div>
+
+      <div class="tabs">
+        <button type="button" class="tab-btn active" data-tab="upload">Upload file</button>
+        <button type="button" class="tab-btn" data-tab="paste">Paste content</button>
+      </div>
+
+      <div class="tab-panel active" data-panel="upload">
+        <label for="file">HTML or Markdown file (.html, .htm, .md)</label>
+        <input type="file" id="file" name="file" accept=".html,.htm,.md,.markdown">
+      </div>
+
+      <div class="tab-panel" data-panel="paste">
+        <label for="source_type">Content type</label>
+        <select id="source_type" name="source_type">
+          <option value="html">HTML</option>
+          <option value="markdown">Markdown</option>
+        </select>
+        <label for="content">Content</label>
+        <textarea id="content" name="content" class="content-editor"></textarea>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="is_public" name="is_public" checked>
+        <label for="is_public">Publicly visible</label>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="protected" name="protected">
+        <label for="protected">Require a username &amp; password to view</label>
+      </div>
+
+      <div class="protect-fields hidden" id="protect-fields">
+        <label for="protect_username">Site username</label>
+        <input type="text" id="protect_username" name="protect_username" autocomplete="off">
+        <label for="protect_password">Site password</label>
+        <input type="password" id="protect_password" name="protect_password" autocomplete="off">
+        <p class="muted" id="protect-password-hint" style="display:none;">Leave blank to keep the current password.</p>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn" id="cancel-btn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="save-btn">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </body>
 </html>
