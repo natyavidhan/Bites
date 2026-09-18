@@ -32,6 +32,16 @@ def create_app() -> Flask:
             return jsonify({"error": message}), 413
         return message, 413
 
+    @app.errorhandler(500)
+    def server_error(e):
+        # Always log the full traceback; only echo details back to API
+        # callers (key/session authenticated), never on public HTML pages.
+        logging.getLogger(__name__).exception("Unhandled server error")
+        if request.path.startswith("/dashboard/api/") or request.path.startswith("/api/"):
+            original = getattr(e, "original_exception", e)
+            return jsonify({"error": f"{type(original).__name__}: {original}"}), 500
+        return "Internal server error.", 500
+
     from app.db import ensure_indexes
 
     try:
