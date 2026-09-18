@@ -61,6 +61,20 @@ def get_site_by_id(site_id: str) -> dict | None:
     return get_sites_collection().find_one({"_id": oid})
 
 
+def get_site_by_slug_or_id(ident: str) -> dict | None:
+    """Look up a site by its Mongo id, falling back to its slug.
+
+    Convenient for the public API, where callers more naturally refer to a
+    site by the slug they chose rather than its database id.
+    """
+    oid = to_object_id(ident)
+    if oid is not None:
+        site = get_sites_collection().find_one({"_id": oid})
+        if site:
+            return site
+    return get_sites_collection().find_one({"slug": ident})
+
+
 def create_site(fields: dict) -> str:
     now = _now()
     doc = {

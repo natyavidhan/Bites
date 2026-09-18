@@ -20,6 +20,10 @@ class Config:
     ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "")
     ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 
+    # Bearer token for the public REST API (/api/v1/*), used by external
+    # tools such as the Bites MCP server. Unset disables that API entirely.
+    API_KEY = os.environ.get("API_KEY", "")
+
     MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
     MONGODB_DB = os.environ.get("MONGODB_DB", "bites")
 

@@ -15,6 +15,7 @@ from app.models import (
 )
 from app.utils.render import MARKDOWN_EXTENSIONS, detect_source_type, render_markdown_document
 from app.utils.slugs import slug_error
+from app.utils.validation import validate_protection_fields
 
 _SAMPLE_MARKDOWN = """# Sample document
 
@@ -78,16 +79,6 @@ def _read_uploaded_content():
     return None, None, None
 
 
-def _validate_protection_fields(protected: bool, username: str, password: str, is_update: bool, keep_existing: bool):
-    if not protected:
-        return None
-    if not username:
-        return "A username is required when password protection is enabled."
-    if not password and not (is_update and keep_existing):
-        return "A password is required when password protection is enabled."
-    return None
-
-
 @admin_bp.route("/")
 @require_admin
 def dashboard():
@@ -125,7 +116,7 @@ def api_create_site():
     if slug_exists(slug):
         return jsonify({"error": f'The name "{slug}" is already taken.'}), 409
 
-    err = _validate_protection_fields(protected, protect_username, protect_password, is_update=False, keep_existing=False)
+    err = validate_protection_fields(protected, protect_username, protect_password, is_update=False, keep_existing=False)
     if err:
         return jsonify({"error": err}), 400
 
@@ -193,7 +184,7 @@ def api_update_site(site_id):
     keep_existing_password = protected and site.get("protected") and not protect_password
 
     if "protected" in request.form or "protect_username" in request.form or "protect_password" in request.form:
-        err = _validate_protection_fields(
+        err = validate_protection_fields(
             protected, protect_username or site.get("protect_username", ""), protect_password,
             is_update=True, keep_existing=keep_existing_password,
         )

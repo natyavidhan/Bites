@@ -21,12 +21,14 @@ def create_app() -> Flask:
 
     @app.errorhandler(404)
     def not_found(_e):
+        if request.path.startswith("/api/") or request.path.startswith("/dashboard/api/"):
+            return jsonify({"error": "Not found."}), 404
         return render_template("404.html"), 404
 
     @app.errorhandler(413)
     def too_large(_e):
         message = "Upload is too large."
-        if request.path.startswith("/dashboard/api/"):
+        if request.path.startswith("/dashboard/api/") or request.path.startswith("/api/"):
             return jsonify({"error": message}), 413
         return message, 413
 
@@ -40,10 +42,12 @@ def create_app() -> Flask:
 
     from app.routes.auth import auth_bp
     from app.routes.admin import admin_bp
+    from app.routes.api import api_bp
     from app.routes.site import site_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(api_bp)
     app.register_blueprint(site_bp)
 
     return app

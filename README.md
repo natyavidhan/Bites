@@ -18,6 +18,10 @@ HTML/CSS/JS frontend, deploys to Vercel with zero build configuration.
 - **Per-site password protection**: optionally require its own username/password
   (HTTP Basic Auth), independent of the admin login.
 - **Clean URLs**: whatever slug you give a site becomes `yourdomain.com/<slug>`.
+- **Public REST API** (`/api/v1/*`), gated by a bearer API key, for creating
+  and managing sites from scripts or AI agents — see
+  [`bites-mcp`](https://github.com/natyavidhan/bites-mcp) for an MCP server
+  built on top of it.
 
 ## Stack
 
@@ -38,8 +42,10 @@ app/
   auth.py                  # admin session auth
   routes/
     auth.py                 # /login, /logout
-    admin.py                 # /dashboard page + JSON API
-    site.py                   # "/" landing + "/<slug>" public serving
+    admin.py                 # /dashboard page + session-authed JSON API
+    api.py                    # /api/v1/* public REST API (API-key authed)
+    site.py                     # "/" landing + "/<slug>" public serving
+  api_auth.py               # API key check for /api/v1/*
   templates/                # Jinja templates (login, dashboard, landing, 404)
   utils/
     slugs.py                 # slugify + validation
@@ -88,6 +94,7 @@ python main.py
    | `SECRET_KEY` | Random string for signing session cookies |
    | `MONGODB_URI` | Your MongoDB / Atlas connection string |
    | `MONGODB_DB` | Database name (default: `bites`) |
+   | `API_KEY` | Optional. Set this to enable `/api/v1/*` for external tools like [bites-mcp](https://github.com/natyavidhan/bites-mcp) |
 
 5. **Deploy.** Visit `/dashboard`, log in, and create your first site.
 
@@ -102,6 +109,50 @@ python main.py
   the username/password set for that specific site.
 - A logged-in admin can always open a private or protected site directly, to
   preview it before publishing.
+
+## Public API (`/api/v1`)
+
+Disabled until you set `API_KEY`. Every request must include it as a bearer
+token (`Authorization: Bearer <API_KEY>`) or an `X-API-Key: <API_KEY>` header.
+
+| Method & path | Description |
+|---|---|
+| `GET /api/v1/ping` | Health/auth check — `{"ok": true}` |
+| `GET /api/v1/themes` | List available Markdown themes |
+| `GET /api/v1/sites` | List all sites |
+| `POST /api/v1/sites` | Create a site |
+| `GET /api/v1/sites/<slug-or-id>` | Get one site (includes its raw content) |
+| `PATCH /api/v1/sites/<slug-or-id>` | Update a site (any subset of fields) |
+| `DELETE /api/v1/sites/<slug-or-id>` | Delete a site |
+
+`POST`/`PATCH` take a JSON body:
+
+```jsonc
+{
+  "title": "My Page",           // optional
+  "slug": "my-page",            // optional on create — auto-generated from the title if omitted
+  "content": "<h1>Hi</h1>",     // required (on create); the raw HTML or Markdown source
+  "source_type": "html",        // required (on create): "html" or "markdown"
+  "markdown_theme": "dracula",  // optional, only used when source_type is "markdown"
+  "is_public": true,            // optional, default true
+  "protected": false,           // optional, default false
+  "protect_username": "...",    // required if protected
+  "protect_password": "..."     // required if protected (on create; optional on update to keep the old one)
+}
+```
+
+Example:
+
+```bash
+curl -X POST https://your-app.vercel.app/api/v1/sites \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Hello", "content": "# Hello\n\nFrom the API.", "source_type": "markdown"}'
+```
+
+This is the surface [bites-mcp](https://github.com/natyavidhan/bites-mcp) is
+built on, so an AI agent can publish whatever it generates straight to your
+Bites deployment.
 
 ## Markdown theme credits
 
